@@ -163,6 +163,7 @@ addEventListener('resize',resize);
 matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
 const $=i=>document.getElementById(i);
 const PCFG={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}]}};
+function errTxt(e){const t=(e&&e.type)||String(e);if(t==='peer-unavailable')return 'Hra s tímto kódem není dostupná. Zkontroluj kód a hostitel musí mít stránku otevřenou.';if(['network','server-error','socket-error','socket-closed'].includes(t))return 'Nedaří se spojit se serverem. Zkontroluj internet a zkus to znovu.';return 'Chyba spojení: '+t}
 function netPush(){const o=net.hasO,d={moves:net.moves,X:(o&&net.swap)?'o':'x',O:o?(net.swap?'x':'o'):'',rm:net.rm};netApply(d);if(net.conn&&net.conn.open)net.conn.send(d)}
 function netRm(){if(net.rm.x&&net.rm.o){net.moves=[];net.rm={x:false,o:false};net.swap=!net.swap}netPush()}
 function netStart(code,create){
@@ -183,7 +184,7 @@ else if(m.t==='reset'){net.moves=[];net.rm={x:false,o:false};netPush()}
 else if(m.t==='rematch'){net.rm.o=true;netRm()}});
 c.on('close',()=>{net.hasO=false;net.conn=null;net.swap=false;net.rm={x:false,o:false};netPush()})});
 peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
-peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();netStart(rnd(),true);return}st.textContent='Chyba spojení: '+e.type})
+peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();netStart(rnd(),true);return}st.textContent=errTxt(e)})
 }else{
 const peer=new Peer(undefined,PCFG);
 net={code,uid:'o',side:'',moves:[],hasO:true,conn:null,host:false,rm:{x:false,o:false},peer,unsub:()=>peer.destroy()};
@@ -192,9 +193,9 @@ const to=setTimeout(()=>{if(net&&net.peer===peer&&!net.got)st.textContent='Spoje
 peer.on('open',()=>{const c=peer.connect('pisk5-'+code,{reliable:true});net.conn=c;
 c.on('open',()=>{$('code').value=code;$('cp').style.display=''});
 c.on('data',d=>{net.got=true;clearTimeout(to);netApply(d)});
-c.on('error',e=>{st.textContent='Chyba spojení: '+(e.type||e)});
+c.on('error',e=>{st.textContent=errTxt(e)});
 c.on('close',()=>{st.textContent='Soupeř se odpojil.'})});
-peer.on('error',e=>{st.textContent=e.type==='peer-unavailable'?'Hra s tímto kódem neexistuje nebo už skončila.':'Chyba spojení: '+e.type})}}
+peer.on('error',e=>{st.textContent=errTxt(e)})}}
 function netApply(d){
 if(!d||!net)return;
 net.side=d.X===net.uid?'X':d.O===net.uid?'O':'';
@@ -224,7 +225,8 @@ $('again').onclick=()=>{if(!net||!net.hasO)return;if(net.host){net.rm.x=true;net
 $('mOn').onclick=()=>{$('lv').style.display='none';$('advBtn').style.display='none';adv=null;$('adv').style.display='none';tut=null;$('tut').style.display='none';$('mTut').classList.remove('on');vsAI=false;$('mAI').classList.remove('on');$('m2').classList.remove('on');$('mOn').classList.add('on');$('onl').style.display='flex';if(!net){st.textContent='Vytvoř hru, nebo zadej kód od kamaráda.';sc.textContent=''}};
 $('mk').onclick=()=>netStart(String(1000+Math.floor(Math.random()*9000)),true);
 $('code').oninput=()=>{$('code').value=$('code').value.replace(/\D/g,'').slice(0,4)};
-$('jn').onclick=()=>{const c=$('code').value.replace(/\D/g,'');if(c.length===4)netStart(c,false);else st.textContent='Zadej čtyřmístný číselný kód.'};
+$('jn').onclick=()=>{const c=$('code').value.replace(/\D/g,'');if(net&&net.host&&net.code===c){st.textContent='Tohle je tvoje vlastní hra. Pošli kód kamarádovi, ať ho zadá u sebe.';return}
+if(c.length===4)netStart(c,false);else st.textContent='Zadej čtyřmístný číselný kód.'};
 $('cp').onclick=()=>{const u=location.href.split('#')[0]+'#'+net.code;try{navigator.clipboard.writeText(u).then(()=>{$('cp').textContent='Zkopírováno ✓'},()=>{st.textContent='Pošli kód: '+net.code})}catch(e){st.textContent='Pošli kód: '+net.code}};
 const LS=[
 {t:'Pět v řadě vyhrává',q:'Máš čtyři ✕ v řadě. Kam dáš páté, abys vyhrál?',X:[[0,0],[0,1],[0,2],[0,3]],O:[],ok:[[0,4],[0,-1]],a:'Přesně! Pět v řadě (vodorovně, svisle nebo šikmo) znamená výhru.',w:'Tady to nevyjde. Pátý ✕ musí navazovat přímo na konec řady, vlevo nebo vpravo.',c:[0,1]},
