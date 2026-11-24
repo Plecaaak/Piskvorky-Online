@@ -260,7 +260,7 @@ const menu=$('menu'),lbl=$('modeLbl');
 function closeMenu(){menu.style.display='none'}
 $('menuBtn').onclick=()=>{menu.style.display=menu.style.display==='none'?'block':'none'};
 document.addEventListener('pointerdown',e=>{if(menu.style.display!=='none'&&!menu.contains(e.target)&&e.target!==$('menuBtn'))closeMenu()});
-[['mAI',1],['m2',1],['mOn',0],['mTut',1]].forEach(([i,c])=>$(i).addEventListener('click',()=>{lbl.textContent=$(i).textContent.replace('? ','');if(c)closeMenu()}));
+[['mAI',1],['m2',1],['mOn',1],['mTut',1]].forEach(([i,c])=>$(i).addEventListener('click',()=>{lbl.textContent=$(i).textContent.replace('? ','');if(c)closeMenu()}));
 ['mk','jn'].forEach(i=>$(i).addEventListener('click',closeMenu));
 lbl.textContent='Proti počítači';
 start();resize();
