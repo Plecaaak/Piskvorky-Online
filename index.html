@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Piškvorky ∞</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#222;--line:#d8d3c8;--x:#d6453d;--o:#2f6fdb;--win:#ffe58a;--accent:#222;--accent-ink:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181c;--card:#20242a;--ink:#eee;--line:#3a4049;--x:#ff7a70;--o:#6ea2ff;--win:#6b5a1c;--accent:#eee;--accent-ink:#16181c}}
+:root[data-theme="dark"]{--bg:#16181c;--card:#20242a;--ink:#eee;--line:#3a4049;--x:#ff7a70;--o:#6ea2ff;--win:#6b5a1c;--accent:#eee;--accent-ink:#16181c}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:14px 8px}
+h1{margin:2px 0 10px;font-size:1.6rem}
+.bar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:8px}
+button.ctl{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:.9rem;cursor:pointer}
+button.ctl.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#status{font-size:1.1rem;font-weight:600;margin:4px 0;min-height:1.6em;text-align:center}
+#score{font-size:.9rem;opacity:.75;margin-bottom:8px}
+#cv{width:min(96vw,900px);height:min(64vh,640px);background:#f6f6f4;border:2px solid #6db3ea;border-radius:10px;touch-action:none;cursor:grab;display:block}
+#code{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:.9rem;width:130px;text-align:center}
+#tut{width:min(96vw,900px);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:.95rem}
+#tut p{margin:6px 0 8px}
+#adv{width:min(96vw,900px);background:var(--card);border:1px solid var(--line);border-left:5px solid #e08a00;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:.95rem}
+.hint{font-size:.8rem;opacity:.65;margin-top:8px;text-align:center}
+</style>
+</head>
+<body>
+<h1>Piškvorky ∞</h1>
+<div class="bar">
+  <button class="ctl on" id="mAI">Proti počítači</button>
+  <button class="ctl" id="m2">Dva hráči</button>
+  <button class="ctl" id="mOn">Online</button>
+  <button class="ctl" id="mTut">Tutoriál</button>
+  <button class="ctl on" id="advBtn">Rady: zap</button>
+  
+  
+</div>
+<div class="bar" id="lv"><button class="ctl" data-l="0">Lehká</button><button class="ctl on" data-l="1">Střední</button><button class="ctl" data-l="2">Těžká</button></div>
+<div class="bar" id="act"><button class="ctl on" id="again" style="display:none">Hrát znovu</button><button class="ctl" id="reset">Nová hra</button><button class="ctl" id="center">Na střed</button></div>
+<div class="bar" id="onl" style="display:none"><button class="ctl" id="mk">Vytvořit hru</button><input id="code" placeholder="kód hry" maxlength="10" autocapitalize="off"><button class="ctl" id="jn">Připojit</button><button class="ctl" id="cp" style="display:none">Zkopírovat odkaz</button></div>
+<div id="tut" style="display:none"><b id="tTitle"></b><p id="tText"></p><div class="bar"><button class="ctl" id="tHint">Nápověda</button><button class="ctl on" id="tNext" style="display:none">Další lekce →</button></div></div>
+<div id="status"></div>
+<div id="adv" style="display:none"></div>
+<div id="score"></div>
+<canvas id="cv"></canvas>
+<div class="hint">Táhni pro posun mapy · kolečko myši nebo štípnutí pro zoom · 5 v řadě vyhrává</div>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),st=document.getElementById('status'),sc=document.getElementById('score');
+let stones,turn,over,vsAI=true,last=null,win=null,score={X:0,O:0};
+let S=40,ox=.5,oy=.5,level=1,net=null,tut=null,advOn=true,adv=null;
+const born=new Map(),AN=160;
+const D=[[0,1],[1,0],[1,1],[1,-1]];
+const get=(r,c)=>stones.get(r+','+c)||'';
+function start(){born.clear();stones=new Map();turn='X';over=false;last=null;win=null;ox=.5;oy=.5;upd();draw()}
+function upd(){sc.textContent='Skóre: ✕ '+score.X+' : '+score.O+' ◯';
+if(!over)st.textContent=vsAI?(turn==='X'?'Jsi na tahu (✕)':'Počítač přemýšlí…'):'Na tahu: '+(turn==='X'?'✕':'◯');
+advise()}
+function winLine(r,c,p){for(const[dr,dc]of D){const l=[[r,c]];
+for(const s of[1,-1]){let y=r+dr*s,x=c+dc*s;while(get(y,x)===p){l.push([y,x]);y+=dr*s;x+=dc*s}}
+if(l.length>=5)return l}return null}
+function move(r,c){
+stones.set(r+','+c,turn);last=[r,c];born.set(r+','+c,performance.now());
+const w=winLine(r,c,turn);
+if(w){over=true;win=w;score[turn]++;upd();
+st.textContent=vsAI?(turn==='X'?'Vyhrál jsi! 🎉':'Vyhrál počítač.'):'Vyhrává '+(turn==='X'?'✕':'◯')+'! 🎉'}
+else{turn=turn==='X'?'O':'X';upd()}
+draw()}
+function ls(r,c,p,dr,dc){let n=1,open=0;
+for(const s of[1,-1]){let y=r+dr*s,x=c+dc*s;while(get(y,x)===p){n++;y+=dr*s;x+=dc*s}
+if(!get(y,x))open++}
+if(n>=5)return 100000;
+if(n===4)return open===2?10000:open===1?1000:0;
+if(n===3)return open===2?1000:open===1?100:0;
+if(n===2)return open===2?100:open===1?10:0;
+return open?2:0}
+function cs(r,c,p){let s=0;for(const[dr,dc]of D)s+=ls(r,c,p,dr,dc);return s}
+function ai(){
+if(over)return;
+if(!stones.size){move(0,0);return}
+const cand=new Set();
+for(const k of stones.keys()){const[r,c]=k.split(',').map(Number);
+for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(!get(r+dy,c+dx))cand.add((r+dy)+','+(c+dx))}
+let best=-1e9,pick=[],sc2=[];
+for(const k of cand){const[r,c]=k.split(',').map(Number);
+const a=cs(r,c,'O'),d=cs(r,c,'X');
+let s=level===0?(a+(Math.random()<.5?d:0))*(.5+Math.random()):a*1.05+d;
+sc2.push([s,r,c]);
+if(s>best){best=s;pick=[[r,c]]}else if(s===best)pick.push([r,c])}
+if(level===2&&best<100000){
+sc2.sort((x,y)=>y[0]-x[0]);best=-1e9;pick=[];
+for(const[s,r,c]of sc2.slice(0,8)){stones.set(r+','+c,'O');let m=0;
+for(const k of cand){if(k===r+','+c)continue;const[y,x]=k.split(',').map(Number);if(!get(y,x)){const v=cs(y,x,'X');if(v>m)m=v}}
+stones.delete(r+','+c);const f=s-.7*m;
+if(f>best){best=f;pick=[[r,c]]}else if(f===best)pick.push([r,c])}}
+const p=pick[Math.floor(Math.random()*pick.length)];move(p[0],p[1])}
+function resize(){const d=devicePixelRatio||1;cv.width=cv.clientWidth*d;cv.height=cv.clientHeight*d;ctx.setTransform(d,0,0,d,0,0);draw()}
+function draw(){
+if(!stones)return;
+const W=cv.clientWidth,H=cv.clientHeight,cssv=getComputedStyle(document.documentElement);
+const col=n=>cssv.getPropertyValue(n).trim();
+ctx.clearRect(0,0,W,H);let anim=false;const now=performance.now();
+const sx=c=>(c-ox)*S+W/2,sy=r=>(r-oy)*S+H/2;
+const c0=Math.floor(ox-W/2/S)-1,c1=Math.ceil(ox+W/2/S)+1,r0=Math.floor(oy-H/2/S)-1,r1=Math.ceil(oy+H/2/S)+1;
+
+ctx.strokeStyle='#6db3ea';ctx.lineWidth=1;ctx.beginPath();
+for(let c=c0;c<=c1;c++){ctx.moveTo(sx(c),0);ctx.lineTo(sx(c),H)}
+for(let r=r0;r<=r1;r++){ctx.moveTo(0,sy(r));ctx.lineTo(W,sy(r))}
+ctx.stroke();
+ctx.lineWidth=Math.max(1.6,S/13);ctx.lineCap='round';
+for(const[k,p]of stones){const[r,c]=k.split(',').map(Number);
+if(c<c0||c>c1||r<r0||r>r1)continue;
+const x=sx(c),y=sy(r),m=S*.25;
+const t0=born.get(k),pr=t0===undefined?1:Math.min(1,(now-t0)/AN);if(pr<1)anim=true;
+if(p==='X'){ctx.strokeStyle='#161616';ctx.beginPath();
+const a=Math.min(1,pr*2),b=Math.max(0,pr*2-1);
+ctx.moveTo(x+m,y+m);ctx.lineTo(x+m+(S-2*m)*a,y+m+(S-2*m)*a);
+if(b>0){ctx.moveTo(x+S-m,y+m);ctx.lineTo(x+S-m-(S-2*m)*b,y+m+(S-2*m)*b)}
+ctx.stroke()}
+else{ctx.strokeStyle='#e02424';ctx.beginPath();ctx.arc(x+S/2,y+S/2,S/2-m,-Math.PI/2,-Math.PI/2+Math.PI*2*pr);ctx.stroke()}}
+if(adv){ctx.strokeStyle=adv.col;ctx.lineWidth=3;ctx.strokeRect(sx(adv.c)+2,sy(adv.r)+2,S-4,S-4)}
+if(tut&&tut.hint&&!tut.done){const h=LS[tut.i].ok[0];ctx.strokeStyle='#2e9e5b';ctx.lineWidth=3;ctx.strokeRect(sx(h[1])+2,sy(h[0])+2,S-4,S-4)}
+if(last){ctx.fillStyle='rgba(255,210,0,.35)';ctx.fillRect(sx(last[1]),sy(last[0]),S,S)}
+if(win&&!anim){const w=[...win].sort((a,b)=>a[1]-b[1]||a[0]-b[0]),a=w[0],z=w[w.length-1],dx=Math.sign(z[1]-a[1]),dy=Math.sign(z[0]-a[0]);ctx.strokeStyle='#111';ctx.lineWidth=Math.max(2,S/10);ctx.beginPath();ctx.moveTo(sx(a[1]+.5)-dx*S*.2,sy(a[0]+.5)-dy*S*.2);ctx.lineTo(sx(z[1]+.5)+dx*S*.2,sy(z[0]+.5)+dy*S*.2);ctx.stroke()}
+if(anim)requestAnimationFrame(draw)}
+const ptrs=new Map();let moved=false,pd=0;
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=false;
+if(ptrs.size===2){const[a,b]=[...ptrs.values()];pd=Math.hypot(a.x-b.x,a.y-b.y);moved=true}cv.style.cursor='grabbing'});
+cv.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)return;
+const dx=e.clientX-p.x,dy=e.clientY-p.y;
+if(ptrs.size===1){if(moved||Math.hypot(dx,dy)>6){moved=true;ox-=dx/S;oy-=dy/S;p.x=e.clientX;p.y=e.clientY;draw()}}
+else{p.x=e.clientX;p.y=e.clientY;const[a,b]=[...ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y);
+if(pd){S=Math.min(90,Math.max(16,S*d/pd));draw()}pd=d}});
+const up=e=>{const had=ptrs.has(e.pointerId);ptrs.delete(e.pointerId);cv.style.cursor='grab';
+if(e.type==='pointerup'&&had&&!moved&&ptrs.size===0)click(e)};
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+cv.addEventListener('wheel',e=>{e.preventDefault();S=Math.min(90,Math.max(16,S*(e.deltaY<0?1.1:.9)));draw()},{passive:false});
+function click(e){
+if(over||(vsAI&&turn==='O'))return;
+const b=cv.getBoundingClientRect(),W=b.width,H=b.height;
+const c=Math.floor((e.clientX-b.left-W/2)/S+ox),r=Math.floor((e.clientY-b.top-H/2)/S+oy);
+if(get(r,c))return;
+if(net){netMove(r,c);return}
+if(tut){tutMove(r,c);return}
+move(r,c);
+if(!over&&vsAI)setTimeout(ai,350)}
+function mode(a){$('again').style.display='none';$('lv').style.display=a?'':'none';$('advBtn').style.display=a?'':'none';tut=null;$('tut').style.display='none';$('mTut').classList.remove('on');if(net){net.unsub&&net.unsub();net=null}document.getElementById('onl').style.display='none';document.getElementById('mOn').classList.remove('on');vsAI=a;document.getElementById('mAI').classList.toggle('on',a);document.getElementById('m2').classList.toggle('on',!a);score={X:0,O:0};start()}
+document.getElementById('mAI').onclick=()=>mode(true);
+document.getElementById('m2').onclick=()=>mode(false);
+document.getElementById('reset').onclick=()=>{if(tut)tutLoad(tut.i);else if(net){netReset()}else start()};
+document.getElementById('center').onclick=()=>{if(last){ox=last[1]+.5;oy=last[0]+.5}else{ox=.5;oy=.5}draw()};
+document.querySelectorAll('#lv button').forEach(b=>b.onclick=()=>{level=+b.dataset.l;document.querySelectorAll('#lv button').forEach(x=>x.classList.toggle('on',x===b))});
+addEventListener('resize',resize);
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
+const $=i=>document.getElementById(i);
+function netPush(){const o=net.hasO,d={moves:net.moves,X:(o&&net.swap)?'o':'x',O:o?(net.swap?'x':'o'):'',rm:net.rm};netApply(d);if(net.conn&&net.conn.open)net.conn.send(d)}
+function netRm(){if(net.rm.x&&net.rm.o){net.moves=[];net.rm={x:false,o:false};net.swap=!net.swap}netPush()}
+function netStart(code,create){
+if(!window.Peer){st.textContent='Online hra se nenačetla. Zkontroluj připojení k internetu.';return}
+if(net&&net.unsub)net.unsub();
+const rnd=()=>Math.random().toString(36).slice(2,8);
+if(create){
+const peer=new Peer('pisk5-'+code);
+net={code,uid:'x',side:'',moves:[],hasO:false,conn:null,host:true,rm:{x:false,o:false},swap:false,peer,unsub:()=>peer.destroy()};
+vsAI=false;
+peer.on('open',()=>{$('code').value=code;$('cp').style.display='';netPush()});
+peer.on('connection',c=>{if(net.conn&&net.conn.open){c.close();return}net.conn=c;
+c.on('open',()=>{net.hasO=true;netPush()});
+c.on('data',m=>{if(!m)return;
+if(m.t==='move'){if(net.hasO&&!over&&turn==='O'&&!get(m.r,m.c)){net.moves=[...net.moves,m.r+','+m.c];netPush()}}
+else if(m.t==='reset'){net.moves=[];net.rm={x:false,o:false};netPush()}
+else if(m.t==='rematch'){net.rm.o=true;netRm()}});
+c.on('close',()=>{net.hasO=false;net.conn=null;net.swap=false;net.rm={x:false,o:false};netPush()})});
+peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();netStart(rnd(),true);return}st.textContent='Chyba spojení: '+e.type})
+}else{
+const peer=new Peer();
+net={code,uid:'o',side:'',moves:[],hasO:true,conn:null,host:false,rm:{x:false,o:false},peer,unsub:()=>peer.destroy()};
+vsAI=false;st.textContent='Připojuji se…';
+peer.on('open',()=>{const c=peer.connect('pisk5-'+code,{reliable:true});net.conn=c;
+c.on('open',()=>{$('code').value=code;$('cp').style.display=''});
+c.on('data',d=>netApply(d));
+c.on('close',()=>{st.textContent='Soupeř se odpojil.'})});
+peer.on('error',e=>{st.textContent=e.type==='peer-unavailable'?'Hra s tímto kódem neexistuje nebo už skončila.':'Chyba spojení: '+e.type})}}
+function netApply(d){
+if(!d||!net)return;
+net.side=d.X===net.uid?'X':d.O===net.uid?'O':'';
+net.moves=(d.moves||[]).slice();net.hasO=!!d.O;net.rm=d.rm||{x:false,o:false};
+const prev=stones;stones=new Map();win=null;last=null;over=false;
+let t='X';
+for(const m of net.moves){const[r,c]=m.split(',').map(Number);stones.set(m,t);last=[r,c];t=t==='X'?'O':'X'}
+turn=t;
+if(last&&!prev.has(last[0]+','+last[1]))born.set(last[0]+','+last[1],performance.now());
+let w=null;
+if(last){w=stones.get(last[0]+','+last[1]);const l=winLine(last[0],last[1],w);if(l){win=l;over=true}}
+draw();
+const me=net.side==='X'?'✕':net.side==='O'?'◯':'divák';
+sc.textContent='Online hra · kód '+net.code+' · hraješ za '+me;
+if(over)st.textContent=net.side?(net.side===w?'Vyhrál jsi! 🎉':'Vyhrál soupeř.'):'Vyhrává '+(w==='X'?'✕':'◯')+'!';
+else if(!net.hasO)st.textContent='Čekám na soupeře. Pošli mu kód: '+net.code;
+else if(!net.side)st.textContent='Díváš se na cizí hru.';
+else st.textContent=turn===net.side?'Jsi na tahu ('+me+')':'Na tahu je soupeř…';
+const ag=$('again');
+if(over&&net.hasO&&net.side){const mine=net.rm[net.uid],theirs=net.rm[net.uid==='x'?'o':'x'];ag.style.display='';ag.disabled=!!mine;ag.textContent=mine?'Čekám na soupeře…':(theirs?'Soupeř chce hrát znovu, přijmout':'Hrát znovu')}else ag.style.display='none'}
+function netMove(r,c){
+if(!net||over||!net.side||!net.hasO||turn!==net.side)return;
+if(net.host){net.moves=[...net.moves,r+','+c];netPush()}
+else if(net.conn&&net.conn.open)net.conn.send({t:'move',r,c})}
+function netReset(){if(!net)return;if(net.host){net.moves=[];net.rm={x:false,o:false};netPush()}else if(net.conn&&net.conn.open)net.conn.send({t:'reset'})}
+$('again').onclick=()=>{if(!net||!net.hasO)return;if(net.host){net.rm.x=true;netRm()}else if(net.conn&&net.conn.open){net.rm[net.uid]=true;netApply({moves:net.moves,X:net.side==='X'?'o':'x',O:net.side==='X'?'x':'o',rm:net.rm});net.conn.send({t:'rematch'})}};
+$('mOn').onclick=()=>{$('lv').style.display='none';$('advBtn').style.display='none';adv=null;$('adv').style.display='none';tut=null;$('tut').style.display='none';$('mTut').classList.remove('on');vsAI=false;$('mAI').classList.remove('on');$('m2').classList.remove('on');$('mOn').classList.add('on');$('onl').style.display='flex';if(!net){st.textContent='Vytvoř hru, nebo zadej kód od kamaráda.';sc.textContent=''}};
+$('mk').onclick=()=>netStart(Math.random().toString(36).slice(2,8),true);
+$('jn').onclick=()=>{const c=$('code').value.trim().toLowerCase();if(c)netStart(c,false)};
+$('cp').onclick=()=>{const u=location.href.split('#')[0]+'#'+net.code;try{navigator.clipboard.writeText(u).then(()=>{$('cp').textContent='Zkopírováno ✓'},()=>{st.textContent='Pošli kód: '+net.code})}catch(e){st.textContent='Pošli kód: '+net.code}};
+const LS=[
+{t:'Pět v řadě vyhrává',q:'Máš čtyři ✕ v řadě. Kam dáš páté, abys vyhrál?',X:[[0,0],[0,1],[0,2],[0,3]],O:[],ok:[[0,4],[0,-1]],a:'Přesně! Pět v řadě (vodorovně, svisle nebo šikmo) znamená výhru.',w:'Tady to nevyjde. Pátý ✕ musí navazovat přímo na konec řady, vlevo nebo vpravo.',c:[0,1]},
+{t:'Zablokuj soupeře',q:'Soupeř (◯) má čtyři v řadě a příště vyhraje. Kam musíš dát ✕?',X:[[1,-1]],O:[[1,0],[1,1],[1,2],[1,3]],ok:[[1,4]],a:'Správně! Čtyřku soupeře vždy blokuj, jinak prohraješ. Druhý konec už ti hlídal tvůj ✕.',w:'To soupeře nezastaví. Jeden konec řady je už zablokovaný, musíš zavřít ten druhý.',c:[1,1]},
+{t:'Otevřená trojka',q:'Máš tři ✕ a po obou stranách je volno. Prodluž je na otevřenou čtyřku. Kam?',X:[[0,0],[0,1],[0,2]],O:[[2,1],[-2,3]],ok:[[0,3],[0,-1]],a:'Skvělé! Otevřená čtyřka má volné oba konce. Soupeř zablokuje jen jeden, takže příště vyhraješ.',w:'Rozšiř řadu o jedno políčko na kterémkoli konci, tak vznikne čtyřka s volnými konci.',c:[0,1]},
+{t:'Dvojitá hrozba',q:'Najdi políčko, kde se spojí obě tvoje dvojice a vzniknou dvě otevřené trojky najednou. Kam?',X:[[0,1],[0,2],[1,0],[2,0]],O:[[3,3],[-2,-2]],ok:[[0,0]],a:'Výborně! Soupeř zablokuje jen jednu trojku a druhou dotáhneš na otevřenou čtyřku. Tohle je hlavní trik hry.',w:'Hledej políčko, které leží v řadě s oběma dvojicemi, vodorovnou i svislou.',c:[1,1]}];
+function tutLoad(i){const L=LS[i];tut={i,done:false,hint:false,miss:0};stones=new Map();born.clear();win=null;last=null;over=false;turn='X';
+L.X.forEach(p=>stones.set(p+'','X'));L.O.forEach(p=>stones.set(p+'','O'));ox=L.c[1]+.5;oy=L.c[0]+.5;
+$('tTitle').textContent='Lekce '+(i+1)+'/'+LS.length+' · '+L.t;$('tText').textContent=L.q;$('tNext').style.display='none';$('tHint').style.display='';st.textContent='';sc.textContent='';draw()}
+function tutMove(r,c){if(!tut||tut.done)return;const L=LS[tut.i];
+if(L.ok.some(p=>p[0]===r&&p[1]===c)){move(r,c);tut.done=true;tut.hint=false;if(!over)st.textContent='';$('tText').textContent='✔ '+L.a;$('tHint').style.display='none';$('tNext').style.display='';$('tNext').textContent=tut.i<LS.length-1?'Další lekce →':'Hotovo, zkus hru proti počítači';draw()}
+else{tut.miss++;$('tText').textContent='✘ '+L.w;if(tut.miss>=2)tut.hint=true;draw()}}
+$('mTut').onclick=()=>{$('again').style.display='none';$('lv').style.display='none';$('advBtn').style.display='none';adv=null;$('adv').style.display='none';if(net){net.unsub&&net.unsub();net=null}$('onl').style.display='none';['mAI','m2','mOn'].forEach(i=>$(i).classList.remove('on'));$('mTut').classList.add('on');vsAI=false;$('tut').style.display='block';tutLoad(0)};
+$('tHint').onclick=()=>{if(tut){tut.hint=true;draw()}};
+$('tNext').onclick=()=>{if(!tut)return;if(tut.i<LS.length-1)tutLoad(tut.i+1);else $('mAI').click()};
+function pat(r,c,p){const o=[];for(const[dr,dc]of D){let n=1,open=0;for(const s of[1,-1]){let y=r+dr*s,x=c+dc*s;while(get(y,x)===p){n++;y+=dr*s;x+=dc*s}if(!get(y,x))open++}o.push([n,open])}return o}
+function kind(r,c,p){const o=pat(r,c,p);
+if(o.some(a=>a[0]>=5))return 5;
+const f4=o.filter(a=>a[0]===4&&a[1]>=1).length,of=o.some(a=>a[0]===4&&a[1]===2),t3=o.filter(a=>a[0]===3&&a[1]===2).length;
+return(of||f4>=2||(f4>=1&&t3>=1)||t3>=2)?4:0}
+const bestOf=a=>a.sort((p,q)=>cs(q[0],q[1],'O')+cs(q[0],q[1],'X')-cs(p[0],p[1],'O')-cs(p[0],p[1],'X'))[0];
+function advise(){const el=$('adv');adv=null;
+if(!(vsAI&&advOn&&!net&&!tut&&!over&&turn==='X'&&stones.size)){el.style.display='none';return}
+const cand=new Set();
+for(const k of stones.keys()){const[r,c]=k.split(',').map(Number);for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(!get(r+dy,c+dx))cand.add((r+dy)+','+(c+dx))}
+const X5=[],O5=[],X4=[],O4=[];
+for(const k of cand){const[r,c]=k.split(',').map(Number),x=kind(r,c,'X'),o=kind(r,c,'O');
+if(x===5)X5.push([r,c]);if(o===5)O5.push([r,c]);if(x===4)X4.push([r,c]);if(o===4)O4.push([r,c])}
+let m=null,h=null,good=false;
+if(X5.length){h=bestOf(X5);good=true;m='🏆 Můžeš vyhrát! Dej ✕ na označené políčko a máš pět v řadě.'}
+else if(O5.length){h=bestOf(O5);m='⚠️ Pozor! Soupeř hrozí pěti v řadě. Zablokuj ho na označeném políčku.'}
+else if(X4.length){h=bestOf(X4);good=true;m='💡 Příležitost! Na označeném políčku vytvoříš hrozbu, kterou soupeř nezastaví (otevřenou čtyřku nebo dvojitou hrozbu).'}
+else if(O4.length){h=bestOf(O4);m='⚠️ Pozor! Soupeř se chystá na hrozbu, kterou by už nešlo zastavit. Zablokuj ho na označeném políčku.'}
+if(!m){el.style.display='none';return}
+adv={r:h[0],c:h[1],col:good?'#2e9e5b':'#e08a00'};el.textContent=m;el.style.borderLeftColor=adv.col;el.style.display='block'}
+$('advBtn').onclick=()=>{advOn=!advOn;$('advBtn').classList.toggle('on',advOn);$('advBtn').textContent='Rady: '+(advOn?'zap':'vyp');advise();draw()};
+start();resize();
+if(location.hash.length>1){$('mOn').click();$('code').value=location.hash.slice(1);netStart(location.hash.slice(1).toLowerCase(),false)}
+</script>
+</body>
+</html>
