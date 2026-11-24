@@ -162,14 +162,16 @@ document.querySelectorAll('#lv button[data-l]').forEach(b=>b.onclick=()=>{level=
 addEventListener('resize',resize);
 matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
 const $=i=>document.getElementById(i);
+const PCFG={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}]}};
 function netPush(){const o=net.hasO,d={moves:net.moves,X:(o&&net.swap)?'o':'x',O:o?(net.swap?'x':'o'):'',rm:net.rm};netApply(d);if(net.conn&&net.conn.open)net.conn.send(d)}
 function netRm(){if(net.rm.x&&net.rm.o){net.moves=[];net.rm={x:false,o:false};net.swap=!net.swap}netPush()}
 function netStart(code,create){
 if(!window.Peer){st.textContent='Online hra se nenačetla. Zkontroluj připojení k internetu.';return}
 if(net&&net.unsub)net.unsub();
+try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(()=>{})}catch(e){}
 const rnd=()=>String(1000+Math.floor(Math.random()*9000));
 if(create){
-const peer=new Peer('pisk5-'+code);
+const peer=new Peer('pisk5-'+code,PCFG);
 net={code,uid:'x',side:'',moves:[],hasO:false,conn:null,host:true,rm:{x:false,o:false},swap:false,peer,unsub:()=>peer.destroy()};
 vsAI=false;
 peer.on('open',()=>{$('code').value=code;$('cp').style.display='';netPush()});
@@ -180,14 +182,17 @@ if(m.t==='move'){if(net.hasO&&!over&&turn===(net.swap?'X':'O')&&!get(m.r,m.c)&&a
 else if(m.t==='reset'){net.moves=[];net.rm={x:false,o:false};netPush()}
 else if(m.t==='rematch'){net.rm.o=true;netRm()}});
 c.on('close',()=>{net.hasO=false;net.conn=null;net.swap=false;net.rm={x:false,o:false};netPush()})});
+peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
 peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();netStart(rnd(),true);return}st.textContent='Chyba spojení: '+e.type})
 }else{
-const peer=new Peer();
+const peer=new Peer(undefined,PCFG);
 net={code,uid:'o',side:'',moves:[],hasO:true,conn:null,host:false,rm:{x:false,o:false},peer,unsub:()=>peer.destroy()};
 vsAI=false;st.textContent='Připojuji se…';
+const to=setTimeout(()=>{if(net&&net.peer===peer&&!net.got)st.textContent='Spojení se nezdařilo. Hostitel musí mít stránku otevřenou a v popředí. Zkus to znovu, případně přes jinou síť (wifi).'},15000);
 peer.on('open',()=>{const c=peer.connect('pisk5-'+code,{reliable:true});net.conn=c;
 c.on('open',()=>{$('code').value=code;$('cp').style.display=''});
-c.on('data',d=>netApply(d));
+c.on('data',d=>{net.got=true;clearTimeout(to);netApply(d)});
+c.on('error',e=>{st.textContent='Chyba spojení: '+(e.type||e)});
 c.on('close',()=>{st.textContent='Soupeř se odpojil.'})});
 peer.on('error',e=>{st.textContent=e.type==='peer-unavailable'?'Hra s tímto kódem neexistuje nebo už skončila.':'Chyba spojení: '+e.type})}}
 function netApply(d){
@@ -263,6 +268,7 @@ document.addEventListener('pointerdown',e=>{if(menu.style.display!=='none'&&!men
 [['mAI',1],['m2',1],['mOn',1],['mTut',1]].forEach(([i,c])=>$(i).addEventListener('click',()=>{lbl.textContent=$(i).textContent.replace('? ','');if(c)closeMenu()}));
 ['mk','jn'].forEach(i=>$(i).addEventListener('click',closeMenu));
 lbl.textContent='Proti počítači';
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&net&&net.peer&&net.peer.disconnected&&!net.peer.destroyed){try{net.peer.reconnect()}catch(e){}}});
 start();resize();
 if(/^#\d{4}$/.test(location.hash)){$('mOn').click();$('code').value=location.hash.slice(1);netStart(location.hash.slice(1),false)}
 </script>
