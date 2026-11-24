@@ -38,12 +38,13 @@ button.ctl.on{background:var(--accent);color:var(--accent-ink);border-color:var(
   
 </div>
 <div class="bar" id="lv"><button class="ctl" data-l="0">Lehká</button><button class="ctl on" data-l="1">Střední</button><button class="ctl" data-l="2">Těžká</button></div>
-<div class="bar" id="act"><button class="ctl on" id="again" style="display:none">Hrát znovu</button><button class="ctl" id="reset">Nová hra</button><button class="ctl" id="center">Na střed</button></div>
+<div class="bar" id="act"><button class="ctl" id="reset">Nová hra</button><button class="ctl" id="center">Na střed</button></div>
 <div class="bar" id="onl" style="display:none"><button class="ctl" id="mk">Vytvořit hru</button><input id="code" placeholder="kód hry" maxlength="10" autocapitalize="off"><button class="ctl" id="jn">Připojit</button><button class="ctl" id="cp" style="display:none">Zkopírovat odkaz</button></div>
 <div id="tut" style="display:none"><b id="tTitle"></b><p id="tText"></p><div class="bar"><button class="ctl" id="tHint">Nápověda</button><button class="ctl on" id="tNext" style="display:none">Další lekce →</button></div></div>
 <div id="status"></div>
 <div id="adv" style="display:none"></div>
 <div id="score"></div>
+<button class="ctl on" id="again" style="display:none;margin-bottom:8px">Hrát znovu</button>
 <canvas id="cv"></canvas>
 <div class="hint">Táhni pro posun mapy · kolečko myši nebo štípnutí pro zoom · 5 v řadě vyhrává</div>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -169,7 +170,7 @@ peer.on('open',()=>{$('code').value=code;$('cp').style.display='';netPush()});
 peer.on('connection',c=>{if(net.conn&&net.conn.open){c.close();return}net.conn=c;
 c.on('open',()=>{net.hasO=true;netPush()});
 c.on('data',m=>{if(!m)return;
-if(m.t==='move'){if(net.hasO&&!over&&turn==='O'&&!get(m.r,m.c)){net.moves=[...net.moves,m.r+','+m.c];netPush()}}
+if(m.t==='move'){if(net.hasO&&!over&&turn===(net.swap?'X':'O')&&!get(m.r,m.c)){net.moves=[...net.moves,m.r+','+m.c];netPush()}}
 else if(m.t==='reset'){net.moves=[];net.rm={x:false,o:false};netPush()}
 else if(m.t==='rematch'){net.rm.o=true;netRm()}});
 c.on('close',()=>{net.hasO=false;net.conn=null;net.swap=false;net.rm={x:false,o:false};netPush()})});
