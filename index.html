@@ -41,15 +41,15 @@ button.ctl.on{background:var(--accent);color:var(--accent-ink);border-color:var(
 <div class="bar"><button class="ctl on" id="mAI">Proti počítači</button><button class="ctl" id="mOn">Online</button><button class="ctl" id="m2">Dva hráči</button></div>
 </div>
 <div class="bar" id="lv"><button class="ctl" data-l="0">Lehká</button><button class="ctl on" data-l="1">Střední</button><button class="ctl" data-l="2">Těžká</button><button class="ctl on" id="advBtn">Rady: zap</button></div>
-<div class="bar" id="onl" style="display:none"><button class="ctl" id="mk">Vytvořit hru</button><input id="code" placeholder="kód hry" maxlength="10" autocapitalize="off"><button class="ctl" id="jn">Připojit</button></div>
+<div class="bar" id="onl" style="display:none"><button class="ctl" id="mk">Vytvořit hru</button><input id="code" placeholder="4 číslice" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off"><button class="ctl" id="jn">Připojit</button></div>
 <div id="tut" style="display:none"><b id="tTitle"></b><p id="tText"></p><div class="bar"><button class="ctl" id="tHint">Nápověda</button><button class="ctl on" id="tNext" style="display:none">Další lekce →</button></div></div>
 <div id="status"></div>
 <div id="adv" style="display:none"></div>
 <div id="score"></div>
+<div class="bar" id="act"><button class="ctl" id="reset">Nová hra</button><button class="ctl" id="center">Na střed</button></div>
 <button class="ctl" id="cp" style="display:none;margin-bottom:8px">Zkopírovat odkaz</button>
 <button class="ctl on" id="again" style="display:none;margin-bottom:8px">Hrát znovu</button>
 <canvas id="cv"></canvas>
-<div class="bar" id="act" style="margin-top:8px"><button class="ctl" id="reset">Nová hra</button><button class="ctl" id="center">Na střed</button></div>
 <div class="hint">Táhni pro posun mapy · kolečko myši nebo štípnutí pro zoom · 5 v řadě vyhrává</div>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
@@ -59,6 +59,7 @@ let S=40,ox=.5,oy=.5,level=1,net=null,tut=null,advOn=true,adv=null;
 const born=new Map(),AN=160;
 const D=[[0,1],[1,0],[1,1],[1,-1]];
 const get=(r,c)=>stones.get(r+','+c)||'';
+function adj(r,c){if(!stones.size)return true;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)if((a||b)&&get(r+a,c+b))return true;return false}
 function start(){born.clear();stones=new Map();turn='X';over=false;last=null;win=null;ox=.5;oy=.5;upd();draw()}
 function upd(){sc.textContent='Skóre: ✕ '+score.X+' : '+score.O+' ◯';
 if(!over)st.textContent=vsAI?(turn==='X'?'Jsi na tahu (✕)':'Počítač přemýšlí…'):'Na tahu: '+(turn==='X'?'✕':'◯');
@@ -87,7 +88,7 @@ if(over)return;
 if(!stones.size){move(0,0);return}
 const cand=new Set();
 for(const k of stones.keys()){const[r,c]=k.split(',').map(Number);
-for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(!get(r+dy,c+dx))cand.add((r+dy)+','+(c+dx))}
+for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(!get(r+dy,c+dx))cand.add((r+dy)+','+(c+dx))}
 let best=-1e9,pick=[],sc2=[];
 for(const k of cand){const[r,c]=k.split(',').map(Number);
 const a=cs(r,c,'O'),d=cs(r,c,'X');
@@ -147,6 +148,7 @@ if(over||(vsAI&&turn==='O'))return;
 const b=cv.getBoundingClientRect(),W=b.width,H=b.height;
 const c=Math.floor((e.clientX-b.left-W/2)/S+ox),r=Math.floor((e.clientY-b.top-H/2)/S+oy);
 if(get(r,c))return;
+if(!adj(r,c)){st.textContent='Symbol musí být těsně vedle jiného symbolu.';return}
 if(net){netMove(r,c);return}
 if(tut){tutMove(r,c);return}
 move(r,c);
@@ -165,7 +167,7 @@ function netRm(){if(net.rm.x&&net.rm.o){net.moves=[];net.rm={x:false,o:false};ne
 function netStart(code,create){
 if(!window.Peer){st.textContent='Online hra se nenačetla. Zkontroluj připojení k internetu.';return}
 if(net&&net.unsub)net.unsub();
-const rnd=()=>Math.random().toString(36).slice(2,8);
+const rnd=()=>String(1000+Math.floor(Math.random()*9000));
 if(create){
 const peer=new Peer('pisk5-'+code);
 net={code,uid:'x',side:'',moves:[],hasO:false,conn:null,host:true,rm:{x:false,o:false},swap:false,peer,unsub:()=>peer.destroy()};
@@ -174,7 +176,7 @@ peer.on('open',()=>{$('code').value=code;$('cp').style.display='';netPush()});
 peer.on('connection',c=>{if(net.conn&&net.conn.open){c.close();return}net.conn=c;
 c.on('open',()=>{net.hasO=true;netPush()});
 c.on('data',m=>{if(!m)return;
-if(m.t==='move'){if(net.hasO&&!over&&turn===(net.swap?'X':'O')&&!get(m.r,m.c)){net.moves=[...net.moves,m.r+','+m.c];netPush()}}
+if(m.t==='move'){if(net.hasO&&!over&&turn===(net.swap?'X':'O')&&!get(m.r,m.c)&&adj(m.r,m.c)){net.moves=[...net.moves,m.r+','+m.c];netPush()}}
 else if(m.t==='reset'){net.moves=[];net.rm={x:false,o:false};netPush()}
 else if(m.t==='rematch'){net.rm.o=true;netRm()}});
 c.on('close',()=>{net.hasO=false;net.conn=null;net.swap=false;net.rm={x:false,o:false};netPush()})});
@@ -215,8 +217,9 @@ else if(net.conn&&net.conn.open)net.conn.send({t:'move',r,c})}
 function netReset(){if(!net)return;if(net.host){net.moves=[];net.rm={x:false,o:false};netPush()}else if(net.conn&&net.conn.open)net.conn.send({t:'reset'})}
 $('again').onclick=()=>{if(!net||!net.hasO)return;if(net.host){net.rm.x=true;netRm()}else if(net.conn&&net.conn.open){net.rm[net.uid]=true;netApply({moves:net.moves,X:net.side==='X'?'o':'x',O:net.side==='X'?'x':'o',rm:net.rm});net.conn.send({t:'rematch'})}};
 $('mOn').onclick=()=>{$('lv').style.display='none';$('advBtn').style.display='none';adv=null;$('adv').style.display='none';tut=null;$('tut').style.display='none';$('mTut').classList.remove('on');vsAI=false;$('mAI').classList.remove('on');$('m2').classList.remove('on');$('mOn').classList.add('on');$('onl').style.display='flex';if(!net){st.textContent='Vytvoř hru, nebo zadej kód od kamaráda.';sc.textContent=''}};
-$('mk').onclick=()=>netStart(Math.random().toString(36).slice(2,8),true);
-$('jn').onclick=()=>{const c=$('code').value.trim().toLowerCase();if(c)netStart(c,false)};
+$('mk').onclick=()=>netStart(String(1000+Math.floor(Math.random()*9000)),true);
+$('code').oninput=()=>{$('code').value=$('code').value.replace(/\D/g,'').slice(0,4)};
+$('jn').onclick=()=>{const c=$('code').value.replace(/\D/g,'');if(c.length===4)netStart(c,false);else st.textContent='Zadej čtyřmístný číselný kód.'};
 $('cp').onclick=()=>{const u=location.href.split('#')[0]+'#'+net.code;try{navigator.clipboard.writeText(u).then(()=>{$('cp').textContent='Zkopírováno ✓'},()=>{st.textContent='Pošli kód: '+net.code})}catch(e){st.textContent='Pošli kód: '+net.code}};
 const LS=[
 {t:'Pět v řadě vyhrává',q:'Máš čtyři ✕ v řadě. Kam dáš páté, abys vyhrál?',X:[[0,0],[0,1],[0,2],[0,3]],O:[],ok:[[0,4],[0,-1]],a:'Přesně! Pět v řadě (vodorovně, svisle nebo šikmo) znamená výhru.',w:'Tady to nevyjde. Pátý ✕ musí navazovat přímo na konec řady, vlevo nebo vpravo.',c:[0,1]},
@@ -241,7 +244,7 @@ const bestOf=a=>a.sort((p,q)=>cs(q[0],q[1],'O')+cs(q[0],q[1],'X')-cs(p[0],p[1],'
 function advise(){const el=$('adv');adv=null;
 if(!(vsAI&&advOn&&!net&&!tut&&!over&&turn==='X'&&stones.size)){el.style.display='none';return}
 const cand=new Set();
-for(const k of stones.keys()){const[r,c]=k.split(',').map(Number);for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(!get(r+dy,c+dx))cand.add((r+dy)+','+(c+dx))}
+for(const k of stones.keys()){const[r,c]=k.split(',').map(Number);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(!get(r+dy,c+dx))cand.add((r+dy)+','+(c+dx))}
 const X5=[],O5=[],X4=[],O4=[];
 for(const k of cand){const[r,c]=k.split(',').map(Number),x=kind(r,c,'X'),o=kind(r,c,'O');
 if(x===5)X5.push([r,c]);if(o===5)O5.push([r,c]);if(x===4)X4.push([r,c]);if(o===4)O4.push([r,c])}
@@ -261,7 +264,7 @@ document.addEventListener('pointerdown',e=>{if(menu.style.display!=='none'&&!men
 ['mk','jn'].forEach(i=>$(i).addEventListener('click',closeMenu));
 lbl.textContent='Proti počítači';
 start();resize();
-if(location.hash.length>1){$('mOn').click();$('code').value=location.hash.slice(1);netStart(location.hash.slice(1).toLowerCase(),false)}
+if(/^#\d{4}$/.test(location.hash)){$('mOn').click();$('code').value=location.hash.slice(1);netStart(location.hash.slice(1),false)}
 </script>
 </body>
 </html>
