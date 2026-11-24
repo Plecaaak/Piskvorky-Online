@@ -24,28 +24,32 @@ button.ctl.on{background:var(--accent);color:var(--accent-ink);border-color:var(
 #tut p{margin:6px 0 8px}
 #adv{width:min(96vw,900px);background:var(--card);border:1px solid var(--line);border-left:5px solid #e08a00;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:.95rem}
 .hint{font-size:.8rem;opacity:.65;margin-top:8px;text-align:center}
+.top{display:flex;align-items:center;gap:10px;width:min(96vw,900px);margin-bottom:8px}
+.top h1{margin:0;font-size:1.3rem}
+#menuBtn{font-size:1.25rem;padding:4px 14px;line-height:1.3}
+#modeLbl{margin-left:auto;font-size:.85rem;opacity:.7}
+#menu{position:absolute;left:max(8px,calc(50vw - 450px));top:calc(env(safe-area-inset-top,0px) + 58px);z-index:20;width:min(92vw,420px);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 12px 4px;box-shadow:0 8px 28px rgba(0,0,0,.28)}
+#menu .bar{flex-direction:column;align-items:stretch;margin-bottom:8px}
+#menu button{text-align:left;padding:10px 16px;font-size:1rem}
+#mTut{padding:6px 12px;font-size:.8rem}
+.mh{flex-basis:100%;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;opacity:.6}
 </style>
 </head>
 <body>
-<h1>Piškvorky ∞</h1>
-<div class="bar">
-  <button class="ctl on" id="mAI">Proti počítači</button>
-  <button class="ctl" id="m2">Dva hráči</button>
-  <button class="ctl" id="mOn">Online</button>
-  <button class="ctl" id="mTut">Tutoriál</button>
-  <button class="ctl on" id="advBtn">Rady: zap</button>
-  
-  
+<div class="top"><button class="ctl" id="menuBtn" aria-label="Menu">☰</button><h1>Piškvorky ∞</h1><span id="modeLbl"></span><button class="ctl" id="mTut">? Tutoriál</button></div>
+<div id="menu" style="display:none">
+<div class="bar"><button class="ctl on" id="mAI">Proti počítači</button><button class="ctl" id="mOn">Online</button><button class="ctl" id="m2">Dva hráči</button></div>
 </div>
-<div class="bar" id="lv"><button class="ctl" data-l="0">Lehká</button><button class="ctl on" data-l="1">Střední</button><button class="ctl" data-l="2">Těžká</button></div>
-<div class="bar" id="act"><button class="ctl" id="reset">Nová hra</button><button class="ctl" id="center">Na střed</button></div>
-<div class="bar" id="onl" style="display:none"><button class="ctl" id="mk">Vytvořit hru</button><input id="code" placeholder="kód hry" maxlength="10" autocapitalize="off"><button class="ctl" id="jn">Připojit</button><button class="ctl" id="cp" style="display:none">Zkopírovat odkaz</button></div>
+<div class="bar" id="lv"><button class="ctl" data-l="0">Lehká</button><button class="ctl on" data-l="1">Střední</button><button class="ctl" data-l="2">Těžká</button><button class="ctl on" id="advBtn">Rady: zap</button></div>
+<div class="bar" id="onl" style="display:none"><button class="ctl" id="mk">Vytvořit hru</button><input id="code" placeholder="kód hry" maxlength="10" autocapitalize="off"><button class="ctl" id="jn">Připojit</button></div>
 <div id="tut" style="display:none"><b id="tTitle"></b><p id="tText"></p><div class="bar"><button class="ctl" id="tHint">Nápověda</button><button class="ctl on" id="tNext" style="display:none">Další lekce →</button></div></div>
 <div id="status"></div>
 <div id="adv" style="display:none"></div>
 <div id="score"></div>
+<button class="ctl" id="cp" style="display:none;margin-bottom:8px">Zkopírovat odkaz</button>
 <button class="ctl on" id="again" style="display:none;margin-bottom:8px">Hrát znovu</button>
 <canvas id="cv"></canvas>
+<div class="bar" id="act" style="margin-top:8px"><button class="ctl" id="reset">Nová hra</button><button class="ctl" id="center">Na střed</button></div>
 <div class="hint">Táhni pro posun mapy · kolečko myši nebo štípnutí pro zoom · 5 v řadě vyhrává</div>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
@@ -147,12 +151,12 @@ if(net){netMove(r,c);return}
 if(tut){tutMove(r,c);return}
 move(r,c);
 if(!over&&vsAI)setTimeout(ai,350)}
-function mode(a){$('again').style.display='none';$('lv').style.display=a?'':'none';$('advBtn').style.display=a?'':'none';tut=null;$('tut').style.display='none';$('mTut').classList.remove('on');if(net){net.unsub&&net.unsub();net=null}document.getElementById('onl').style.display='none';document.getElementById('mOn').classList.remove('on');vsAI=a;document.getElementById('mAI').classList.toggle('on',a);document.getElementById('m2').classList.toggle('on',!a);score={X:0,O:0};start()}
+function mode(a){$('again').style.display='none';$('cp').style.display='none';$('lv').style.display=a?'':'none';$('advBtn').style.display=a?'':'none';tut=null;$('tut').style.display='none';$('mTut').classList.remove('on');if(net){net.unsub&&net.unsub();net=null}document.getElementById('onl').style.display='none';document.getElementById('mOn').classList.remove('on');vsAI=a;document.getElementById('mAI').classList.toggle('on',a);document.getElementById('m2').classList.toggle('on',!a);score={X:0,O:0};start()}
 document.getElementById('mAI').onclick=()=>mode(true);
 document.getElementById('m2').onclick=()=>mode(false);
 document.getElementById('reset').onclick=()=>{if(tut)tutLoad(tut.i);else if(net){netReset()}else start()};
 document.getElementById('center').onclick=()=>{if(last){ox=last[1]+.5;oy=last[0]+.5}else{ox=.5;oy=.5}draw()};
-document.querySelectorAll('#lv button').forEach(b=>b.onclick=()=>{level=+b.dataset.l;document.querySelectorAll('#lv button').forEach(x=>x.classList.toggle('on',x===b))});
+document.querySelectorAll('#lv button[data-l]').forEach(b=>b.onclick=()=>{level=+b.dataset.l;document.querySelectorAll('#lv button[data-l]').forEach(x=>x.classList.toggle('on',x===b))});
 addEventListener('resize',resize);
 matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
 const $=i=>document.getElementById(i);
@@ -225,7 +229,7 @@ $('tTitle').textContent='Lekce '+(i+1)+'/'+LS.length+' · '+L.t;$('tText').textC
 function tutMove(r,c){if(!tut||tut.done)return;const L=LS[tut.i];
 if(L.ok.some(p=>p[0]===r&&p[1]===c)){move(r,c);tut.done=true;tut.hint=false;if(!over)st.textContent='';$('tText').textContent='✔ '+L.a;$('tHint').style.display='none';$('tNext').style.display='';$('tNext').textContent=tut.i<LS.length-1?'Další lekce →':'Hotovo, zkus hru proti počítači';draw()}
 else{tut.miss++;$('tText').textContent='✘ '+L.w;if(tut.miss>=2)tut.hint=true;draw()}}
-$('mTut').onclick=()=>{$('again').style.display='none';$('lv').style.display='none';$('advBtn').style.display='none';adv=null;$('adv').style.display='none';if(net){net.unsub&&net.unsub();net=null}$('onl').style.display='none';['mAI','m2','mOn'].forEach(i=>$(i).classList.remove('on'));$('mTut').classList.add('on');vsAI=false;$('tut').style.display='block';tutLoad(0)};
+$('mTut').onclick=()=>{$('again').style.display='none';$('cp').style.display='none';$('lv').style.display='none';$('advBtn').style.display='none';adv=null;$('adv').style.display='none';if(net){net.unsub&&net.unsub();net=null}$('onl').style.display='none';['mAI','m2','mOn'].forEach(i=>$(i).classList.remove('on'));$('mTut').classList.add('on');vsAI=false;$('tut').style.display='block';tutLoad(0)};
 $('tHint').onclick=()=>{if(tut){tut.hint=true;draw()}};
 $('tNext').onclick=()=>{if(!tut)return;if(tut.i<LS.length-1)tutLoad(tut.i+1);else $('mAI').click()};
 function pat(r,c,p){const o=[];for(const[dr,dc]of D){let n=1,open=0;for(const s of[1,-1]){let y=r+dr*s,x=c+dc*s;while(get(y,x)===p){n++;y+=dr*s;x+=dc*s}if(!get(y,x))open++}o.push([n,open])}return o}
@@ -249,6 +253,13 @@ else if(O4.length){h=bestOf(O4);m='⚠️ Pozor! Soupeř se chystá na hrozbu, k
 if(!m){el.style.display='none';return}
 adv={r:h[0],c:h[1],col:good?'#2e9e5b':'#e08a00'};el.textContent=m;el.style.borderLeftColor=adv.col;el.style.display='block'}
 $('advBtn').onclick=()=>{advOn=!advOn;$('advBtn').classList.toggle('on',advOn);$('advBtn').textContent='Rady: '+(advOn?'zap':'vyp');advise();draw()};
+const menu=$('menu'),lbl=$('modeLbl');
+function closeMenu(){menu.style.display='none'}
+$('menuBtn').onclick=()=>{menu.style.display=menu.style.display==='none'?'block':'none'};
+document.addEventListener('pointerdown',e=>{if(menu.style.display!=='none'&&!menu.contains(e.target)&&e.target!==$('menuBtn'))closeMenu()});
+[['mAI',1],['m2',1],['mOn',0],['mTut',1]].forEach(([i,c])=>$(i).addEventListener('click',()=>{lbl.textContent=$(i).textContent.replace('? ','');if(c)closeMenu()}));
+['mk','jn'].forEach(i=>$(i).addEventListener('click',closeMenu));
+lbl.textContent='Proti počítači';
 start();resize();
 if(location.hash.length>1){$('mOn').click();$('code').value=location.hash.slice(1);netStart(location.hash.slice(1).toLowerCase(),false)}
 </script>
